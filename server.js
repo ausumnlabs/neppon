@@ -103,8 +103,8 @@ app.post("/bitrix/invoice", async (req, res) => {
         entityTypeId: 31,
         id: invoiceId,
         fields: {
-          [CUSTOM_FIELD]: amountWords,
-        },
+        comments: amountWords,
+    },
       }
     );
 
