@@ -28,6 +28,10 @@ function convertAmountToWords(amount) {
 }
 
 app.post("/bitrix/invoice", async (req, res) => {
+    
+    
+     console.log("BODY RECEIVED =>");
+  console.log(JSON.stringify(req.body, null, 2));
   try {
     console.log(
       "WEBHOOK BODY => ",
