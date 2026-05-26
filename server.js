@@ -34,20 +34,27 @@ app.get("/bitrix/invoice", (req, res) => {
   res.send("Webhook Route Working");
 });
 
+
+
+
 app.post("/bitrix/invoice", async (req, res) => {
-    
-    
-     console.log("BODY RECEIVED =>");
-  console.log(JSON.stringify(req.body, null, 2));
   try {
+
     console.log(
       "WEBHOOK BODY => ",
       JSON.stringify(req.body, null, 2)
     );
 
-    // OUTBOUND WEBHOOK DATA
+    // SMART INVOICE ID
+    const rawId =
+      req.body.document_id?.[2];
+
     const invoiceId =
-      req.body?.data?.FIELDS?.ID;
+      rawId?.replace("SMART_INVOICE_", "");
+
+    console.log("RAW ID => ", rawId);
+
+    console.log("INVOICE ID => ", invoiceId);
 
     if (!invoiceId) {
       return res.status(400).json({
@@ -56,32 +63,44 @@ app.post("/bitrix/invoice", async (req, res) => {
       });
     }
 
-    console.log("INVOICE ID => ", invoiceId);
-
-    // GET INVOICE DETAILS
+    // GET SMART INVOICE
     const invoiceResponse = await axios.post(
-      `${BITRIX_WEBHOOK}/crm.invoice.get.json`,
+      `${BITRIX_WEBHOOK}/crm.item.get.json`,
       {
+        entityTypeId: 31,
         id: invoiceId,
       }
     );
 
+    console.log(
+      "INVOICE RESPONSE => ",
+      invoiceResponse.data
+    );
+
     const invoice =
-      invoiceResponse.data.result;
+      invoiceResponse.data.result.item;
 
-    console.log("INVOICE => ", invoice);
+    // TOTAL AMOUNT
+    const amount = Number(
+      invoice.opportunity
+    );
 
-    const amount = Number(invoice.PRICE);
+    console.log("AMOUNT => ", amount);
 
+    // CONVERT TO WORDS
     const amountWords =
       convertAmountToWords(amount);
 
-    console.log("AMOUNT WORDS => ", amountWords);
+    console.log(
+      "AMOUNT WORDS => ",
+      amountWords
+    );
 
     // UPDATE CUSTOM FIELD
     const updateResponse = await axios.post(
-      `${BITRIX_WEBHOOK}/crm.invoice.update.json`,
+      `${BITRIX_WEBHOOK}/crm.item.update.json`,
       {
+        entityTypeId: 31,
         id: invoiceId,
         fields: {
           [CUSTOM_FIELD]: amountWords,
@@ -98,7 +117,9 @@ app.post("/bitrix/invoice", async (req, res) => {
       success: true,
       amountWords,
     });
+
   } catch (error) {
+
     console.log(
       "ERROR => ",
       error.response?.data || error.message
@@ -111,6 +132,9 @@ app.post("/bitrix/invoice", async (req, res) => {
     });
   }
 });
+
+
+
 
 app.get("/", (req, res) => {
   res.send("Bitrix Invoice Automation Running");
