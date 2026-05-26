@@ -11,7 +11,7 @@ const app = express();
 
 app.use(express.json());
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 
 const BITRIX_WEBHOOK = process.env.BITRIX_WEBHOOK;
 
@@ -29,28 +29,48 @@ function convertAmountToWords(amount) {
 
 app.post("/bitrix/invoice", async (req, res) => {
   try {
-    console.log("BODY => ", req.body);
+    console.log(
+      "WEBHOOK BODY => ",
+      JSON.stringify(req.body, null, 2)
+    );
 
-    const invoiceId = req.body.invoiceId;
+    // OUTBOUND WEBHOOK DATA
+    const invoiceId =
+      req.body?.data?.FIELDS?.ID;
 
-    const amount = Number(req.body.opportunity);
-
-    if (!invoiceId || !amount) {
+    if (!invoiceId) {
       return res.status(400).json({
         success: false,
-        message: "Invalid payload",
+        message: "Invoice ID missing",
       });
     }
 
-    const amountWords = convertAmountToWords(amount);
+    console.log("INVOICE ID => ", invoiceId);
 
-    console.log("WORDS => ", amountWords);
-
-    // SMART INVOICE UPDATE
-    await axios.post(
-      `${BITRIX_WEBHOOK}/crm.item.update.json`,
+    // GET INVOICE DETAILS
+    const invoiceResponse = await axios.post(
+      `${BITRIX_WEBHOOK}/crm.invoice.get.json`,
       {
-        entityTypeId: 31,
+        id: invoiceId,
+      }
+    );
+
+    const invoice =
+      invoiceResponse.data.result;
+
+    console.log("INVOICE => ", invoice);
+
+    const amount = Number(invoice.PRICE);
+
+    const amountWords =
+      convertAmountToWords(amount);
+
+    console.log("AMOUNT WORDS => ", amountWords);
+
+    // UPDATE CUSTOM FIELD
+    const updateResponse = await axios.post(
+      `${BITRIX_WEBHOOK}/crm.invoice.update.json`,
+      {
         id: invoiceId,
         fields: {
           [CUSTOM_FIELD]: amountWords,
@@ -58,18 +78,31 @@ app.post("/bitrix/invoice", async (req, res) => {
       }
     );
 
+    console.log(
+      "UPDATE RESPONSE => ",
+      updateResponse.data
+    );
+
     return res.json({
       success: true,
       amountWords,
     });
   } catch (error) {
-    console.log(error.response?.data || error.message);
+    console.log(
+      "ERROR => ",
+      error.response?.data || error.message
+    );
 
     return res.status(500).json({
       success: false,
-      error: error.message,
+      error:
+        error.response?.data || error.message,
     });
   }
+});
+
+app.get("/", (req, res) => {
+  res.send("Bitrix Invoice Automation Running");
 });
 
 app.listen(PORT, () => {
