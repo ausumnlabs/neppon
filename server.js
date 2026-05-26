@@ -27,6 +27,12 @@ function convertAmountToWords(amount) {
   return `${words} Rupees Only`;
 }
 
+app.get("/bitrix/invoice", (req, res) => {
+  console.log("GET ROUTE HIT");
+
+  res.send("Webhook Route Working");
+});
+
 app.post("/bitrix/invoice", async (req, res) => {
     
     
