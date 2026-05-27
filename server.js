@@ -18,15 +18,65 @@ const BITRIX_WEBHOOK = process.env.BITRIX_WEBHOOK;
 
 const CUSTOM_FIELD = process.env.CUSTOM_FIELD;
 
-function convertAmountToWords(amount) {
-  const rounded = Math.round(amount);
 
-  let words = toWords(rounded)
-    .replace(/-/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+function convertNumberToWords(num) {
 
-  return `${words} Rupees Only`;
+  const a = [
+    "", "ONE", "TWO", "THREE", "FOUR", "FIVE",
+    "SIX", "SEVEN", "EIGHT", "NINE", "TEN",
+    "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN",
+    "FIFTEEN", "SIXTEEN", "SEVENTEEN",
+    "EIGHTEEN", "NINETEEN"
+  ];
+
+  const b = [
+    "", "", "TWENTY", "THIRTY", "FORTY",
+    "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"
+  ];
+
+  function inWords(n) {
+
+    if (n < 20) return a[n];
+
+    if (n < 100)
+      return b[Math.floor(n / 10)] +
+        (n % 10 ? " " + a[n % 10] : "");
+
+    if (n < 1000)
+      return a[Math.floor(n / 100)] +
+        " HUNDRED" +
+        (n % 100 ? " " + inWords(n % 100) : "");
+
+    if (n < 100000)
+      return inWords(Math.floor(n / 1000)) +
+        " THOUSAND" +
+        (n % 1000 ? " " + inWords(n % 1000) : "");
+
+    if (n < 10000000)
+      return inWords(Math.floor(n / 100000)) +
+        " LAKH" +
+        (n % 100000 ? " " + inWords(n % 100000) : "");
+
+    return inWords(Math.floor(n / 10000000)) +
+      " CRORE" +
+      (n % 10000000 ? " " + inWords(n % 10000000) : "");
+  }
+
+  const number = Number(num).toFixed(2);
+
+  const [rupees, paisa] = number.split(".");
+
+  let words = `INR. ${inWords(Number(rupees))}`;
+
+  if (Number(paisa) > 0) {
+    words += ` AND ${inWords(Number(paisa))} PAISA`;
+  }
+
+  words += " ONLY";
+
+  return words;
 }
+
 
 app.get("/bitrix/invoice", (req, res) => {
   console.log("GET ROUTE HIT");
@@ -89,7 +139,7 @@ app.post("/bitrix/invoice", async (req, res) => {
 
     // CONVERT TO WORDS
     const amountWords =
-      convertAmountToWords(amount);
+      convertNumberToWords(amount);
 
     console.log(
       "AMOUNT WORDS => ",
